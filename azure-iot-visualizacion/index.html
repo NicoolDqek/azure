@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard IoT - Azure</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
+    canvas { background: white; padding: 10px; margin-bottom: 40px; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <h2>Datos de Sensores en Tiempo Real</h2>
+
+  <h3>Acelerómetro</h3>
+  <canvas id="accChart" width="400" height="200"></canvas>
+
+  <h3>Giroscopio</h3>
+  <canvas id="gyroChart" width="400" height="200"></canvas>
+
+  <h3> Magnetómetro</h3>
+  <canvas id="magChart" width="400" height="200"></canvas>
+
+  <script>
+    const MAX_POINTS = 20;
+
+    const createChart = (ctx, label) => new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: ['x', 'y', 'z'].map((axis, i) => ({
+          label: `${label} ${axis.toUpperCase()}`,
+          data: [],
+          borderColor: ['red', 'green', 'blue'][i],
+          fill: false,
+        }))
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        scales: {
+          x: { display: false },
+          y: { beginAtZero: false }
+        }
+      }
+    });
+
+    const accChart = createChart(document.getElementById('accChart'), 'Acc');
+    const gyroChart = createChart(document.getElementById('gyroChart'), 'Gyro');
+    const magChart = createChart(document.getElementById('magChart'), 'Mag');
+
+    const updateChart = (chart, data) => {
+      const time = new Date().toLocaleTimeString();
+      chart.data.labels.push(time);
+
+      chart.data.datasets[0].data.push(data.x);
+      chart.data.datasets[1].data.push(data.y);
+      chart.data.datasets[2].data.push(data.z);
+
+      if (chart.data.labels.length > MAX_POINTS) {
+        chart.data.labels.shift();
+        chart.data.datasets.forEach(ds => ds.data.shift());
+      }
+
+      chart.update();
+    };
+
+
+
+  // socket 
+    const socket = new WebSocket("ws://localhost:8080");
+    socket.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      if (msg.accelerometer) updateChart(accChart, msg.accelerometer);
+      if (msg.gyroscope) updateChart(gyroChart, msg.gyroscope);
+      if (msg.magnetometer) updateChart(magChart, msg.magnetometer);
+    };
+  </script>
+</body>
+</html>
